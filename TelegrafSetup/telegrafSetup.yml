@@ -1,0 +1,40 @@
+---
+- hosts: umq
+  gather_facts: false
+  become: true
+
+  tasks:
+  - name: Add telegraf repository
+    yum_repository:
+      name: influxdb
+      description: InfluxDB Repository - RHEL $releasever
+      baseurl: https://repos.influxdata.com/rhel/$releasever/$basearch/stable
+      gpgcheck: yes
+      gpgkey: https://repos.influxdata.com/influxdb.key
+
+  - name: Install telegraf
+    yum:
+      name: telegraf
+      state: latest
+
+  - name: Copy config
+    copy:
+      src: ./templates/telegraf-linux.conf
+      dest: /etc/telegraf/telegraf.conf
+      owner: root
+      group: root
+      mode: 0644
+      backup: yes
+      force: yes
+
+  - name: Line change
+    shell: export hostname=`hostname -i|awk -F' ' '{print $1}'`; sed -i 's/^  hostname = ""/  hostname = '\"$hostname\"'/g' /etc/telegraf/telegraf.conf
+    notify:
+      - restart telegraf
+              
+  handlers:
+  - name: restart telegraf
+    service:
+      name: telegraf
+      state: restarted
+      enabled: yes
